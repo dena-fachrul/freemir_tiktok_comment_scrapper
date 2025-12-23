@@ -119,26 +119,39 @@ st.markdown("""
             box-shadow: 0 0 8px rgba(255, 0, 80, 0.3) !important;
         }
 
-        /* Button Styling (Red Only) */
-        div.stButton > button {
+        /* Button Styling (FORCE RED) */
+        div[data-testid="stButton"] > button {
             width: 100%;
-            background: #ff0050 !important; /* <--- INI YANG DIGANTI JADI MERAH SOLID */
-            border: none !important;
-            color: white !important;
+            background-color: #ff0050 !important; /* Warna Merah Solid */
+            background-image: none !important;    /* Matikan gradient putih/bawaan */
+            border: 1px solid #ff0050 !important;
+            color: white !important;              /* Warna Teks Putih */
             font-weight: 700 !important;
             text-transform: uppercase;
-            letter-spacing: 1px;
             padding: 0.75rem 1rem !important;
             border-radius: 8px !important;
-            transition: transform 0.2s, box-shadow 0.2s !important;
             margin-top: 10px;
         }
         
-        div.stButton > button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255, 0, 80, 0.4) !important;
-            background: #ff2e6d !important; /* Efek hover sedikit lebih terang */
+        /* Pastikan teks di dalam tombol (seperti elemen <p>) juga putih */
+        div[data-testid="stButton"] > button p {
             color: white !important;
+        }
+
+        /* Efek Hover */
+        div[data-testid="stButton"] > button:hover {
+            background-color: #d60043 !important; /* Merah sedikit lebih gelap saat hover */
+            background-image: none !important;
+            color: white !important;
+            box-shadow: 0 5px 15px rgba(255, 0, 80, 0.4) !important;
+            border-color: #d60043 !important;
+        }
+        
+        /* Efek saat diklik */
+        div[data-testid="stButton"] > button:active {
+            background-color: #b30038 !important;
+            color: white !important;
+            transform: translateY(1px);
         }
         
         /* Status & Expander Styling */
