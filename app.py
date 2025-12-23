@@ -4,6 +4,7 @@ import re
 import pandas as pd
 import json
 import base64
+import time
 from datetime import datetime
 from collections import Counter
 from apify_client import ApifyClient
@@ -36,19 +37,25 @@ ACTOR_ID = "BDec00yAmCm1QbMEI"
 MIN_CHAR_LENGTH = 3
 
 # ==========================================
-# CUSTOM CSS (ADAPTED FROM CODE 2)
+# CUSTOM CSS (UI INTEGRATION & DARK MODE FIX)
 # ==========================================
 st.markdown("""
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
         
-        /* Global Streamlit Overrides */
+        /* Global Streamlit Overrides for Dark Mode */
         .stApp {
             background-color: #0e1117;
             font-family: 'Inter', sans-serif;
+            color: #fafafa;
         }
         
+        /* Ensure all basic text is white */
+        p, span, div, li {
+            color: #fafafa;
+        }
+
         /* Variables */
         :root {
             --card-bg: #262730;
@@ -83,7 +90,7 @@ st.markdown("""
         }
 
         .subtitle {
-            color: #9799a4;
+            color: #9799a4 !important; /* Secondary text lighter */
             font-size: 1rem;
             font-weight: 300;
             margin-top: 5px;
@@ -99,7 +106,7 @@ st.markdown("""
             border: 1px solid #333;
         }
 
-        /* Input Fields Styling */
+        /* Input Fields Styling - FORCE WHITE TEXT */
         .stTextInput input, .stNumberInput input {
             background-color: #0e1117 !important;
             border: 1px solid #444 !important;
@@ -133,10 +140,14 @@ st.markdown("""
             color: white !important;
         }
 
-        div.stButton > button:active {
-            transform: translateY(0);
+        /* Status & Expander Styling */
+        .stStatusWidget {
+            background-color: #1f2229 !important;
+            border: 1px solid #444 !important;
+            color: white !important;
+            border-radius: 10px;
         }
-
+        
         /* Success Message Box */
         .stSuccess {
             background-color: rgba(0, 242, 234, 0.1) !important;
@@ -148,7 +159,7 @@ st.markdown("""
         .footer {
             text-align: center;
             margin-top: 4rem;
-            color: #555;
+            color: #555 !important;
             font-size: 0.8rem;
             border-top: 1px solid #333;
             padding-top: 20px;
@@ -735,24 +746,35 @@ with st.form("scrape_form"):
     # Custom Styled Button triggered by submit
     submitted = st.form_submit_button("ROBOT START! 🚀")
 
-# --- EXECUTION LOGIC (WITH SESSION STATE) ---
+# --- EXECUTION LOGIC (WITH PROGRESS STATUS) ---
 if submitted:
     if not video_url:
         st.error("⚠️ Please enter a valid TikTok URL.")
     else:
-        with st.spinner("🚀 Scraping data & Analyzing sentiment (This may take a moment)..."):
-            # 1. Scrape
+        # PENGGUNAAN st.status UNTUK STEP-BY-STEP VISUALIZATION
+        with st.status("🚀 Initiating System Sequence...", expanded=True) as status:
+            
+            # Step 1: Scraping
+            st.write("🔍 Connecting to TikTok API & Scraping Comments...")
             df_result, error_msg = scrape_tiktok_comments(video_url, max_comments, max_replies)
             
             if df_result is not None:
-                # 2. Analyze
+                st.write(f"✅ Scraping Complete! Found {len(df_result)} comments.")
+                time.sleep(0.5) # Sedikit delay agar user sempat melihat prosesnya
+                
+                # Step 2: Analyzing
+                st.write("🧠 Analyzing Sentiment, Slang & Keyword Extraction...")
                 excel_filename = analyze_and_get_excel_bytes(df_result, video_url)
+                st.write("✅ Analysis & Translation Complete!")
+                time.sleep(0.5)
+
+                # Step 3: Generating HTML
+                st.write("📄 Generating Interactive Dashboard & Excel Reports...")
                 
                 # Read Excel as bytes for session state
                 with open(excel_filename, "rb") as f:
                     excel_bytes = f.read()
 
-                # 3. Generate HTML
                 html_str = generate_html_report_string(excel_filename)
                 
                 # 4. SAVE TO SESSION STATE
@@ -766,8 +788,12 @@ if submitted:
                 try: os.remove(excel_filename)
                 except: pass
                 
+                # Update Status to Complete
+                status.update(label="✅ All Systems Operational! Data Ready.", state="complete", expanded=False)
+                
             else:
                 st.error(f"❌ Error: {error_msg}")
+                status.update(label="❌ System Failure", state="error")
 
 # --- RESULT SECTION (PERSISTENT) ---
 if st.session_state['analysis_done']:
