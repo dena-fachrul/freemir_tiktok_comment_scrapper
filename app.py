@@ -640,33 +640,34 @@ with st.form("scrape_form"):
     submitted = st.form_submit_button("ROBOT START! 🚀")
 
 # --- EXECUTION LOGIC (CHECKLIST & PROGRESS) ---
+# --- EXECUTION LOGIC (CHECKLIST & PROGRESS) ---
 if submitted:
     if not video_url:
         st.error("⚠️ Please enter a valid TikTok URL.")
     else:
         # PENGGUNAAN STATUS CONTAINER (CHECKLIST STEP BY STEP)
-        with st.status("🤖 Robot sedang bekerja...", expanded=True) as status:
+        with st.status("🤖 Processing data...", expanded=True) as status:
             
             # STEP 1: SCRAPING
-            st.write("📡 Step 1: Menghubungkan ke TikTok & Scraping Data...")
+            st.write("📡 Step 1: Connecting to TikTok & Scraping Data...")
             df_result, error_msg = scrape_tiktok_comments(video_url, max_comments, max_replies)
             
             if df_result is not None:
-                st.write(f"✅ Scraping Berhasil! {len(df_result)} komentar ditemukan.")
+                st.write(f"✅ Scraping Successful! {len(df_result)} comments found.")
                 
                 # STEP 2: CLEANING & TRANSLATING
-                st.write("🧹 Step 2: Membersihkan teks, Sentiment Analysis & Translating (Summary Only)...")
+                st.write("🧹 Step 2: Cleaning text, Sentiment Analysis & Translating (Summary Only)...")
                 # Kita gunakan try-except besar disini agar jika translate error, tidak crash total
                 try:
                     excel_filename = analyze_and_get_excel_bytes(df_result, video_url)
-                    st.write("✅ Analisis & Translasi selesai.")
+                    st.write("✅ Analysis & Translation complete.")
                 except Exception as e:
-                    st.error(f"⚠️ Error di tahap analisis: {e}")
-                    status.update(label="Terjadi kesalahan!", state="error")
+                    st.error(f"⚠️ Error during analysis: {e}")
+                    status.update(label="An error occurred!", state="error")
                     st.stop()
                 
                 # STEP 3: FILE GENERATION
-                st.write("📄 Step 3: Membungkus laporan ke Excel & HTML...")
+                st.write("📄 Step 3: Generating Excel & HTML reports...")
                 
                 # Read Excel as bytes for session state
                 with open(excel_filename, "rb") as f:
@@ -686,16 +687,16 @@ if submitted:
                 try: os.remove(excel_filename)
                 except: pass
                 
-                st.write("✅ Semua proses selesai!")
-                status.update(label="Selesai! Data siap di-download.", state="complete", expanded=False)
+                st.write("✅ All processes completed!")
+                status.update(label="Done! Data is ready to download.", state="complete", expanded=False)
                 
                 # Rerun agar tombol download muncul di bawah form (UI refresh)
                 time.sleep(1)
                 st.rerun()
 
             else:
-                st.error(f"❌ Error saat Scraping: {error_msg}")
-                status.update(label="Gagal Scraping!", state="error")
+                st.error(f"❌ Error during Scraping: {error_msg}")
+                status.update(label="Scraping Failed!", state="error")
 
 # --- RESULT SECTION (PERSISTENT / TIDAK RESET) ---
 # Bagian ini ditaruh DI LUAR 'if submitted' agar tetap muncul setelah klik download
