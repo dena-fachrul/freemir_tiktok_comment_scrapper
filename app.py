@@ -4,7 +4,6 @@ import re
 import pandas as pd
 import json
 import base64
-import time
 from datetime import datetime
 from collections import Counter
 from apify_client import ApifyClient
@@ -37,31 +36,24 @@ ACTOR_ID = "BDec00yAmCm1QbMEI"
 MIN_CHAR_LENGTH = 3
 
 # ==========================================
-# CUSTOM CSS (UI INTEGRATION & DARK MODE FIX)
+# CUSTOM CSS (ADAPTED FROM CODE 2)
 # ==========================================
 st.markdown("""
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
         
-        /* Global Streamlit Overrides for Dark Mode */
+        /* Global Streamlit Overrides */
         .stApp {
             background-color: #0e1117;
             font-family: 'Inter', sans-serif;
-            color: #fafafa;
         }
         
-        /* Ensure all basic text is white */
-        p, span, div, li {
-            color: #fafafa;
-        }
-
         /* Variables */
         :root {
             --card-bg: #262730;
             --tiktok-cyan: #00f2ea;
             --tiktok-red: #ff0050;
-            --input-bg-red: #2b0e13; /* Merah gelap untuk background input */
             --text-primary: #fafafa;
         }
 
@@ -91,7 +83,7 @@ st.markdown("""
         }
 
         .subtitle {
-            color: #9799a4 !important; /* Secondary text lighter */
+            color: #9799a4;
             font-size: 1rem;
             font-weight: 300;
             margin-top: 5px;
@@ -107,66 +99,44 @@ st.markdown("""
             border: 1px solid #333;
         }
 
-        /* --- INPUT FIELDS STYLING (THE RED TEXT BOX) --- */
-        /* Membuat background kemerahan dan border merah menyala */
+        /* Input Fields Styling */
         .stTextInput input, .stNumberInput input {
-            background-color: var(--input-bg-red) !important; 
-            border: 1px solid var(--tiktok-red) !important;
-            color: white !important; /* Tulisannya Putih */
-            border-radius: 8px !important;
-            font-weight: 500;
-        }
-        
-        /* Efek saat diklik (Focus) */
-        .stTextInput input:focus, .stNumberInput input:focus {
-            border-color: #ff4d7d !important;
-            box-shadow: 0 0 10px rgba(255, 0, 80, 0.5) !important;
-            background-color: #3d0a15 !important;
-        }
-
-        /* --- BUTTON STYLING (FULL WIDTH & RED) --- */
-        div[data-testid="stButton"] > button {
-            width: 100% !important;           /* Lebar 100% sama dengan text box */
-            background-color: #ff0050 !important; /* Warna Merah Solid */
-            background-image: none !important;
-            border: none !important;
-            color: white !important;          /* Tulisan Putih */
-            font-weight: 800 !important;
-            text-transform: uppercase;
-            padding: 0.85rem 1rem !important;
-            border-radius: 8px !important;
-            margin-top: 15px;
-            letter-spacing: 1px;
-            transition: all 0.3s ease;
-        }
-        
-        /* Pastikan teks di dalam tombol (seperti elemen <p>) juga putih */
-        div[data-testid="stButton"] > button p {
-            color: white !important;
-            font-size: 16px !important;
-        }
-
-        /* Efek Hover Tombol */
-        div[data-testid="stButton"] > button:hover {
-            background-color: #d60043 !important;
-            box-shadow: 0 0 20px rgba(255, 0, 80, 0.6) !important;
-            transform: scale(1.01);
-        }
-        
-        /* Efek saat diklik */
-        div[data-testid="stButton"] > button:active {
-            background-color: #b30038 !important;
-            transform: translateY(2px);
-        }
-        
-        /* Status & Expander Styling */
-        .stStatusWidget {
-            background-color: #1f2229 !important;
+            background-color: #0e1117 !important;
             border: 1px solid #444 !important;
             color: white !important;
-            border-radius: 10px;
+            border-radius: 8px !important;
         }
         
+        .stTextInput input:focus, .stNumberInput input:focus {
+            border-color: var(--tiktok-red) !important;
+            box-shadow: 0 0 8px rgba(255, 0, 80, 0.3) !important;
+        }
+
+        /* Button Styling (Gradient) */
+        div.stButton > button {
+            width: 100%;
+            background: linear-gradient(90deg, #00f2ea, #ff0050) !important;
+            border: none !important;
+            color: white !important;
+            font-weight: 700 !important;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0.75rem 1rem !important;
+            border-radius: 8px !important;
+            transition: transform 0.2s, box-shadow 0.2s !important;
+            margin-top: 10px;
+        }
+        
+        div.stButton > button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 0, 80, 0.4) !important;
+            color: white !important;
+        }
+
+        div.stButton > button:active {
+            transform: translateY(0);
+        }
+
         /* Success Message Box */
         .stSuccess {
             background-color: rgba(0, 242, 234, 0.1) !important;
@@ -178,7 +148,7 @@ st.markdown("""
         .footer {
             text-align: center;
             margin-top: 4rem;
-            color: #555 !important;
+            color: #555;
             font-size: 0.8rem;
             border-top: 1px solid #333;
             padding-top: 20px;
@@ -765,35 +735,24 @@ with st.form("scrape_form"):
     # Custom Styled Button triggered by submit
     submitted = st.form_submit_button("ROBOT START! 🚀")
 
-# --- EXECUTION LOGIC (WITH PROGRESS STATUS) ---
+# --- EXECUTION LOGIC (WITH SESSION STATE) ---
 if submitted:
     if not video_url:
         st.error("⚠️ Please enter a valid TikTok URL.")
     else:
-        # PENGGUNAAN st.status UNTUK STEP-BY-STEP VISUALIZATION
-        with st.status("🚀 Initiating System Sequence...", expanded=True) as status:
-            
-            # Step 1: Scraping
-            st.write("🔍 Connecting to TikTok API & Scraping Comments...")
+        with st.spinner("🚀 Scraping data & Analyzing sentiment (This may take a moment)..."):
+            # 1. Scrape
             df_result, error_msg = scrape_tiktok_comments(video_url, max_comments, max_replies)
             
             if df_result is not None:
-                st.write(f"✅ Scraping Complete! Found {len(df_result)} comments.")
-                time.sleep(0.5) # Sedikit delay agar user sempat melihat prosesnya
-                
-                # Step 2: Analyzing
-                st.write("🧠 Analyzing Sentiment, Slang & Keyword Extraction...")
+                # 2. Analyze
                 excel_filename = analyze_and_get_excel_bytes(df_result, video_url)
-                st.write("✅ Analysis & Translation Complete!")
-                time.sleep(0.5)
-
-                # Step 3: Generating HTML
-                st.write("📄 Generating Interactive Dashboard & Excel Reports...")
                 
                 # Read Excel as bytes for session state
                 with open(excel_filename, "rb") as f:
                     excel_bytes = f.read()
 
+                # 3. Generate HTML
                 html_str = generate_html_report_string(excel_filename)
                 
                 # 4. SAVE TO SESSION STATE
@@ -807,12 +766,8 @@ if submitted:
                 try: os.remove(excel_filename)
                 except: pass
                 
-                # Update Status to Complete
-                status.update(label="✅ All Systems Operational! Data Ready.", state="complete", expanded=False)
-                
             else:
                 st.error(f"❌ Error: {error_msg}")
-                status.update(label="❌ System Failure", state="error")
 
 # --- RESULT SECTION (PERSISTENT) ---
 if st.session_state['analysis_done']:
