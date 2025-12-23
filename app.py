@@ -4,6 +4,7 @@ import re
 import pandas as pd
 import json
 import base64
+import time
 from datetime import datetime
 from collections import Counter
 from apify_client import ApifyClient
@@ -18,7 +19,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# INITIALIZE SESSION STATE (Agar data tidak hilang saat klik download)
+# INITIALIZE SESSION STATE (PENTING: Agar data tidak hilang saat klik download)
 if 'analysis_done' not in st.session_state:
     st.session_state['analysis_done'] = False
 if 'excel_data' not in st.session_state:
@@ -36,136 +37,32 @@ ACTOR_ID = "BDec00yAmCm1QbMEI"
 MIN_CHAR_LENGTH = 3
 
 # ==========================================
-# CUSTOM CSS (ADAPTED FROM CODE 2)
+# CUSTOM CSS
 # ==========================================
 st.markdown("""
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
         
-        /* Global Streamlit Overrides */
-        .stApp {
-            background-color: #0e1117;
-            font-family: 'Inter', sans-serif;
-        }
+        .stApp { background-color: #0e1117; font-family: 'Inter', sans-serif; }
+        :root { --card-bg: #262730; --tiktok-cyan: #00f2ea; --tiktok-red: #ff0050; --text-primary: #fafafa; }
+
+        .header-container { text-align: center; margin-bottom: 2rem; animation: float 3s ease-in-out infinite; }
+        .tiktok-logo-icon { font-size: 3.5rem; margin-bottom: 0.5rem; color: white; text-shadow: 2px 2px 0px var(--tiktok-red), -2px -2px 0px var(--tiktok-cyan); }
+        h1 { font-family: 'Inter', sans-serif !important; font-weight: 800 !important; font-size: 2.5rem !important; background: -webkit-linear-gradient(45deg, var(--tiktok-cyan), #fff, var(--tiktok-red)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0 !important; }
+        .subtitle { color: #9799a4; font-size: 1rem; font-weight: 300; margin-top: 5px; letter-spacing: 1px; }
+
+        [data-testid="stForm"] { background-color: var(--card-bg); padding: 2.5rem; border-radius: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border: 1px solid #333; }
+        .stTextInput input, .stNumberInput input { background-color: #0e1117 !important; border: 1px solid #444 !important; color: white !important; border-radius: 8px !important; }
+        .stTextInput input:focus, .stNumberInput input:focus { border-color: var(--tiktok-red) !important; box-shadow: 0 0 8px rgba(255, 0, 80, 0.3) !important; }
+
+        div.stButton > button { width: 100%; background: linear-gradient(90deg, #00f2ea, #ff0050) !important; border: none !important; color: white !important; font-weight: 700 !important; text-transform: uppercase; letter-spacing: 1px; padding: 0.75rem 1rem !important; border-radius: 8px !important; margin-top: 10px; }
+        div.stButton > button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 0, 80, 0.4) !important; }
         
-        /* Variables */
-        :root {
-            --card-bg: #262730;
-            --tiktok-cyan: #00f2ea;
-            --tiktok-red: #ff0050;
-            --text-primary: #fafafa;
-        }
-
-        /* Title Styling */
-        .header-container {
-            text-align: center;
-            margin-bottom: 2rem;
-            animation: float 3s ease-in-out infinite;
-        }
-        
-        .tiktok-logo-icon {
-            font-size: 3.5rem;
-            margin-bottom: 0.5rem;
-            color: white;
-            text-shadow: 2px 2px 0px var(--tiktok-red), -2px -2px 0px var(--tiktok-cyan);
-        }
-
-        h1 {
-            font-family: 'Inter', sans-serif !important;
-            font-weight: 800 !important;
-            font-size: 2.5rem !important;
-            background: -webkit-linear-gradient(45deg, var(--tiktok-cyan), #fff, var(--tiktok-red));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 0 !important;
-            padding-bottom: 0 !important;
-        }
-
-        .subtitle {
-            color: #9799a4;
-            font-size: 1rem;
-            font-weight: 300;
-            margin-top: 5px;
-            letter-spacing: 1px;
-        }
-
-        /* Form / Card Styling */
-        [data-testid="stForm"] {
-            background-color: var(--card-bg);
-            padding: 2.5rem;
-            border-radius: 1rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-            border: 1px solid #333;
-        }
-
-        /* Input Fields Styling */
-        .stTextInput input, .stNumberInput input {
-            background-color: #0e1117 !important;
-            border: 1px solid #444 !important;
-            color: white !important;
-            border-radius: 8px !important;
-        }
-        
-        .stTextInput input:focus, .stNumberInput input:focus {
-            border-color: var(--tiktok-red) !important;
-            box-shadow: 0 0 8px rgba(255, 0, 80, 0.3) !important;
-        }
-
-        /* Button Styling (Gradient) */
-        div.stButton > button {
-            width: 100%;
-            background: linear-gradient(90deg, #00f2ea, #ff0050) !important;
-            border: none !important;
-            color: white !important;
-            font-weight: 700 !important;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            padding: 0.75rem 1rem !important;
-            border-radius: 8px !important;
-            transition: transform 0.2s, box-shadow 0.2s !important;
-            margin-top: 10px;
-        }
-        
-        div.stButton > button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255, 0, 80, 0.4) !important;
-            color: white !important;
-        }
-
-        div.stButton > button:active {
-            transform: translateY(0);
-        }
-
-        /* Success Message Box */
-        .stSuccess {
-            background-color: rgba(0, 242, 234, 0.1) !important;
-            border: 1px solid var(--tiktok-cyan) !important;
-            color: white !important;
-        }
-
-        /* Footer */
-        .footer {
-            text-align: center;
-            margin-top: 4rem;
-            color: #555;
-            font-size: 0.8rem;
-            border-top: 1px solid #333;
-            padding-top: 20px;
-        }
-
-        /* Animations */
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
-            100% { transform: translateY(0px); }
-        }
-        
-        /* Label Icons */
-        .label-icon {
-            margin-right: 8px;
-            color: var(--tiktok-cyan);
-        }
+        .stSuccess { background-color: rgba(0, 242, 234, 0.1) !important; border: 1px solid var(--tiktok-cyan) !important; color: white !important; }
+        .footer { text-align: center; margin-top: 4rem; color: #555; font-size: 0.8rem; border-top: 1px solid #333; padding-top: 20px; }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
+        .label-icon { margin-right: 8px; color: var(--tiktok-cyan); }
     </style>
 """, unsafe_allow_html=True)
 
@@ -333,6 +230,16 @@ def categorize_comment(text: str) -> str:
     elif score < 0: return "Negative"
     return "Neutral"
 
+# --- SAFE TRANSLATOR (ANTI-CRASH) ---
+def safe_translate(translator, text):
+    """Mencoba translate, jika gagal kembali ke text asli agar tidak crash"""
+    if not text or len(str(text)) < 2:
+        return text
+    try:
+        return translator.translate(text)
+    except Exception:
+        return text  # Fail-safe: kembalikan teks asli
+
 # ==========================================
 # 2. SCRAPER FUNCTION
 # ==========================================
@@ -355,6 +262,7 @@ def scrape_tiktok_comments(video_url, max_comments, max_replies):
 
     if run.get("status") == "SUCCEEDED":
         dataset_id = run["defaultDatasetId"]
+        # Gunakan list comprehension agar tidak memakan memori berlebih jika sangat besar
         data = list(client.dataset(dataset_id).iterate_items())
 
         if not data:
@@ -397,7 +305,7 @@ def scrape_tiktok_comments(video_url, max_comments, max_replies):
         return None, "Scraping failed at Apify end."
 
 # ==========================================
-# 3. ANALYZER & EXCEL GENERATOR
+# 3. ANALYZER & EXCEL GENERATOR (WITH STATUS UPDATE)
 # ==========================================
 def analyze_and_get_excel_bytes(df_main, video_url):
     # Initialize Translators
@@ -417,6 +325,7 @@ def analyze_and_get_excel_bytes(df_main, video_url):
     analyzed_rows = []
     all_keywords = []
 
+    # Iterasi biasa agar aman
     for index, row in df_main.iterrows():
         username = row['Username'] if 'Username' in row else "Unknown"
         raw_comment = row['Comment'] if 'Comment' in row else ""
@@ -458,22 +367,18 @@ def analyze_and_get_excel_bytes(df_main, video_url):
     df_top10 = df_clean.sort_values(by='Liked', ascending=False).head(10).copy()
     df_top10['No'] = range(1, len(df_top10) + 1)
     
-    try:
-        df_top10['Comment (EN)'] = df_top10['Comment'].apply(lambda x: ts_en.translate(x))
-        df_top10['Comment (CN)'] = df_top10['Comment'].apply(lambda x: ts_cn.translate(x))
-    except:
-        df_top10['Comment (EN)'] = "Error"; df_top10['Comment (CN)'] = "Error"
+    # SAFE TRANSLATION LOOP (Agar tidak error jika gagal satu)
+    # Kita pakai safe_translate yang sudah dibuat di atas
+    df_top10['Comment (EN)'] = df_top10['Comment'].apply(lambda x: safe_translate(ts_en, x))
+    df_top10['Comment (CN)'] = df_top10['Comment'].apply(lambda x: safe_translate(ts_cn, x))
         
     df_top10 = df_top10[['No', 'Username', 'Comment', 'Comment (EN)', 'Comment (CN)', 'Liked']]
 
     # B. TOP 10 KEYWORDS
     df_kw_top10 = df_kw_full.head(10).copy()
     if not df_kw_top10.empty:
-        try:
-            df_kw_top10['Keyword (EN)'] = df_kw_top10['Keyword'].apply(lambda x: ts_en.translate(x))
-            df_kw_top10['Keyword (CN)'] = df_kw_top10['Keyword'].apply(lambda x: ts_cn.translate(x))
-        except:
-            df_kw_top10['Keyword (EN)'] = "-"; df_kw_top10['Keyword (CN)'] = "-"
+        df_kw_top10['Keyword (EN)'] = df_kw_top10['Keyword'].apply(lambda x: safe_translate(ts_en, x))
+        df_kw_top10['Keyword (CN)'] = df_kw_top10['Keyword'].apply(lambda x: safe_translate(ts_cn, x))
     
     df_kw_top10 = df_kw_top10.rename(columns={'Keyword': 'Keyword (ID)'})
     cols_kw = ['No', 'Keyword (ID)', 'Keyword (EN)', 'Keyword (CN)', 'Frequency']
@@ -482,10 +387,10 @@ def analyze_and_get_excel_bytes(df_main, video_url):
     # C. SENTIMENT STATS
     sent_counts = df_clean['Sentiment'].value_counts().reset_index()
     sent_counts.columns = ['Label (ID)', 'Count']
-    try:
-        sent_counts['Label (EN)'] = sent_counts['Label (ID)'].apply(lambda x: ts_en.translate(x))
-        sent_counts['Label (CN)'] = sent_counts['Label (ID)'].apply(lambda x: ts_cn.translate(x))
-    except: pass
+    
+    sent_counts['Label (EN)'] = sent_counts['Label (ID)'].apply(lambda x: safe_translate(ts_en, x))
+    sent_counts['Label (CN)'] = sent_counts['Label (ID)'].apply(lambda x: safe_translate(ts_cn, x))
+
     cols_sent = ['Label (ID)', 'Label (EN)', 'Label (CN)', 'Count']
     sent_counts = sent_counts[[c for c in cols_sent if c in sent_counts.columns]]
 
@@ -567,7 +472,7 @@ def generate_html_report_string(excel_path):
         'Neutral': '#B0B0B0', 'Statement': '#FFC107', 
         'Positive': '#00C853', 'Negative': '#FF1744', 'Question': '#6200EA'
     }
-    sent_display_labels = (df_sentiment['Label_EN'] + " / " + df_sentiment['Label_CN']).tolist()
+    sent_display_labels = (df_sentiment['Label_EN'].astype(str) + " / " + df_sentiment['Label_CN'].astype(str)).tolist()
     sent_counts_list = df_sentiment['Count'].tolist()
     sent_ids = df_sentiment['Label_ID'].tolist()
     sent_colors = [color_map.get(label, '#9E9E9E') for label in sent_ids]
@@ -575,7 +480,7 @@ def generate_html_report_string(excel_path):
     top_kw = df_keywords.head(10).sort_values(by='Frequency', ascending=False)
     kw_labels = top_kw['Keyword_ID'].tolist()
     kw_data = top_kw['Frequency'].tolist()
-    kw_tooltips = (top_kw['Keyword_ID'] + " | " + top_kw['Keyword_EN'] + " | " + top_kw['Keyword_CN']).tolist()
+    kw_tooltips = (top_kw['Keyword_ID'].astype(str) + " | " + top_kw['Keyword_EN'].astype(str) + " | " + top_kw['Keyword_CN'].astype(str)).tolist()
 
     # --- HTML GENERATION ---
     table_rows = ""
@@ -716,7 +621,6 @@ st.markdown("""
 
 # --- FORM SECTION (STYLED AS CARD) ---
 with st.form("scrape_form"):
-    # Label manual with Icon via HTML, input hidden label to avoid double label
     st.markdown('<label style="color:#fafafa; font-weight:600; font-size:0.9rem; margin-bottom:5px; display:block;"><i class="fas fa-link label-icon"></i> TikTok Video URL</label>', unsafe_allow_html=True)
     video_url = st.text_input("URL", placeholder="Paste link video TikTok di sini (https://...)", label_visibility="collapsed")
     
@@ -735,27 +639,43 @@ with st.form("scrape_form"):
     # Custom Styled Button triggered by submit
     submitted = st.form_submit_button("ROBOT START! 🚀")
 
-# --- EXECUTION LOGIC (WITH SESSION STATE) ---
+# --- EXECUTION LOGIC (CHECKLIST & PROGRESS) ---
 if submitted:
     if not video_url:
         st.error("⚠️ Please enter a valid TikTok URL.")
     else:
-        with st.spinner("🚀 Scraping data & Analyzing sentiment (This may take a moment)..."):
-            # 1. Scrape
+        # PENGGUNAAN STATUS CONTAINER (CHECKLIST STEP BY STEP)
+        with st.status("🤖 Robot sedang bekerja...", expanded=True) as status:
+            
+            # STEP 1: SCRAPING
+            st.write("📡 Step 1: Menghubungkan ke TikTok & Scraping Data...")
             df_result, error_msg = scrape_tiktok_comments(video_url, max_comments, max_replies)
             
             if df_result is not None:
-                # 2. Analyze
-                excel_filename = analyze_and_get_excel_bytes(df_result, video_url)
+                st.write(f"✅ Scraping Berhasil! {len(df_result)} komentar ditemukan.")
+                
+                # STEP 2: CLEANING & TRANSLATING
+                st.write("🧹 Step 2: Membersihkan teks, Sentiment Analysis & Translating (Summary Only)...")
+                # Kita gunakan try-except besar disini agar jika translate error, tidak crash total
+                try:
+                    excel_filename = analyze_and_get_excel_bytes(df_result, video_url)
+                    st.write("✅ Analisis & Translasi selesai.")
+                except Exception as e:
+                    st.error(f"⚠️ Error di tahap analisis: {e}")
+                    status.update(label="Terjadi kesalahan!", state="error")
+                    st.stop()
+                
+                # STEP 3: FILE GENERATION
+                st.write("📄 Step 3: Membungkus laporan ke Excel & HTML...")
                 
                 # Read Excel as bytes for session state
                 with open(excel_filename, "rb") as f:
                     excel_bytes = f.read()
 
-                # 3. Generate HTML
+                # Generate HTML
                 html_str = generate_html_report_string(excel_filename)
                 
-                # 4. SAVE TO SESSION STATE
+                # SAVE TO SESSION STATE
                 st.session_state['df_result'] = df_result
                 st.session_state['excel_data'] = excel_bytes
                 st.session_state['html_str'] = html_str
@@ -766,10 +686,19 @@ if submitted:
                 try: os.remove(excel_filename)
                 except: pass
                 
-            else:
-                st.error(f"❌ Error: {error_msg}")
+                st.write("✅ Semua proses selesai!")
+                status.update(label="Selesai! Data siap di-download.", state="complete", expanded=False)
+                
+                # Rerun agar tombol download muncul di bawah form (UI refresh)
+                time.sleep(1)
+                st.rerun()
 
-# --- RESULT SECTION (PERSISTENT) ---
+            else:
+                st.error(f"❌ Error saat Scraping: {error_msg}")
+                status.update(label="Gagal Scraping!", state="error")
+
+# --- RESULT SECTION (PERSISTENT / TIDAK RESET) ---
+# Bagian ini ditaruh DI LUAR 'if submitted' agar tetap muncul setelah klik download
 if st.session_state['analysis_done']:
     st.success(f"✅ Analysis Complete! {st.session_state['total_comments']} comments processed.")
     
