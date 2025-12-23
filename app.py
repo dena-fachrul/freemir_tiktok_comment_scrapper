@@ -61,6 +61,7 @@ st.markdown("""
             --card-bg: #262730;
             --tiktok-cyan: #00f2ea;
             --tiktok-red: #ff0050;
+            --input-bg-red: #2b0e13; /* Merah gelap untuk background input */
             --text-primary: #fafafa;
         }
 
@@ -106,52 +107,56 @@ st.markdown("""
             border: 1px solid #333;
         }
 
-        /* Input Fields Styling - FORCE WHITE TEXT */
+        /* --- INPUT FIELDS STYLING (THE RED TEXT BOX) --- */
+        /* Membuat background kemerahan dan border merah menyala */
         .stTextInput input, .stNumberInput input {
-            background-color: #0e1117 !important;
-            border: 1px solid #444 !important;
-            color: white !important;
+            background-color: var(--input-bg-red) !important; 
+            border: 1px solid var(--tiktok-red) !important;
+            color: white !important; /* Tulisannya Putih */
             border-radius: 8px !important;
+            font-weight: 500;
         }
         
+        /* Efek saat diklik (Focus) */
         .stTextInput input:focus, .stNumberInput input:focus {
-            border-color: var(--tiktok-red) !important;
-            box-shadow: 0 0 8px rgba(255, 0, 80, 0.3) !important;
+            border-color: #ff4d7d !important;
+            box-shadow: 0 0 10px rgba(255, 0, 80, 0.5) !important;
+            background-color: #3d0a15 !important;
         }
 
-        /* Button Styling (FORCE RED) */
+        /* --- BUTTON STYLING (FULL WIDTH & RED) --- */
         div[data-testid="stButton"] > button {
-            width: 100%;
+            width: 100% !important;           /* Lebar 100% sama dengan text box */
             background-color: #ff0050 !important; /* Warna Merah Solid */
-            background-image: none !important;    /* Matikan gradient putih/bawaan */
-            border: 1px solid #ff0050 !important;
-            color: white !important;              /* Warna Teks Putih */
-            font-weight: 700 !important;
+            background-image: none !important;
+            border: none !important;
+            color: white !important;          /* Tulisan Putih */
+            font-weight: 800 !important;
             text-transform: uppercase;
-            padding: 0.75rem 1rem !important;
+            padding: 0.85rem 1rem !important;
             border-radius: 8px !important;
-            margin-top: 10px;
+            margin-top: 15px;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
         }
         
         /* Pastikan teks di dalam tombol (seperti elemen <p>) juga putih */
         div[data-testid="stButton"] > button p {
             color: white !important;
+            font-size: 16px !important;
         }
 
-        /* Efek Hover */
+        /* Efek Hover Tombol */
         div[data-testid="stButton"] > button:hover {
-            background-color: #d60043 !important; /* Merah sedikit lebih gelap saat hover */
-            background-image: none !important;
-            color: white !important;
-            box-shadow: 0 5px 15px rgba(255, 0, 80, 0.4) !important;
-            border-color: #d60043 !important;
+            background-color: #d60043 !important;
+            box-shadow: 0 0 20px rgba(255, 0, 80, 0.6) !important;
+            transform: scale(1.01);
         }
         
         /* Efek saat diklik */
         div[data-testid="stButton"] > button:active {
             background-color: #b30038 !important;
-            color: white !important;
-            transform: translateY(1px);
+            transform: translateY(2px);
         }
         
         /* Status & Expander Styling */
