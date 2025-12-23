@@ -119,10 +119,10 @@ st.markdown("""
             box-shadow: 0 0 8px rgba(255, 0, 80, 0.3) !important;
         }
 
-        /* Button Styling (Gradient) */
+        /* Button Styling (Red Only) */
         div.stButton > button {
             width: 100%;
-            background: linear-gradient(90deg, #00f2ea, #ff0050) !important;
+            background: #ff0050 !important; /* <--- INI YANG DIGANTI JADI MERAH SOLID */
             border: none !important;
             color: white !important;
             font-weight: 700 !important;
@@ -137,9 +137,10 @@ st.markdown("""
         div.stButton > button:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(255, 0, 80, 0.4) !important;
+            background: #ff2e6d !important; /* Efek hover sedikit lebih terang */
             color: white !important;
         }
-
+        
         /* Status & Expander Styling */
         .stStatusWidget {
             background-color: #1f2229 !important;
