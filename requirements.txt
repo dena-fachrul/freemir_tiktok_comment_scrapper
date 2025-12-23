@@ -1,0 +1,7 @@
+streamlit
+pandas
+apify-client
+deep-translator
+openpyxl
+plotly
+openpyxl
