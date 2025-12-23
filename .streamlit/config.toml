@@ -1,0 +1,19 @@
+[theme]
+# Mengatur tema dasar ke gelap
+base = "dark"
+
+# Warna utama (untuk border input, slider, widget aktif)
+# Saya ambil warna Cyan/Biru muda agar senada dengan tulisan "freemir"
+primaryColor = "#00ADB5"
+
+# Warna background halaman utama (Hitam keabu-abuan, tidak pekat agar mata nyaman)
+backgroundColor = "#0E1117"
+
+# Warna background untuk Sidebar dan kartu/kotak input
+secondaryBackgroundColor = "#262730"
+
+# Warna teks
+textColor = "#FAFAFA"
+
+# Font (opsional, sans serif terlihat lebih modern)
+font = "sans serif"
