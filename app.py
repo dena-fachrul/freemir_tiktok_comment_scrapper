@@ -3,6 +3,7 @@ import os
 import re
 import pandas as pd
 import json
+import base64
 from datetime import datetime
 from collections import Counter
 from apify_client import ApifyClient
@@ -17,83 +18,153 @@ st.set_page_config(
     layout="centered"
 )
 
+# INITIALIZE SESSION STATE (Agar data tidak hilang saat klik download)
+if 'analysis_done' not in st.session_state:
+    st.session_state['analysis_done'] = False
+if 'excel_data' not in st.session_state:
+    st.session_state['excel_data'] = None
+if 'html_str' not in st.session_state:
+    st.session_state['html_str'] = None
+if 'df_result' not in st.session_state:
+    st.session_state['df_result'] = None
+if 'total_comments' not in st.session_state:
+    st.session_state['total_comments'] = 0
+
 # API CONFIGURATION
 API_TOKEN = "apify_api_bU9GPfWGRakecXak2ejiE9xeEeClWJ3iIRNJ"
 ACTOR_ID = "BDec00yAmCm1QbMEI"
 MIN_CHAR_LENGTH = 3
 
 # ==========================================
-# CUSTOM CSS (UI INTEGRATION)
+# CUSTOM CSS (ADAPTED FROM CODE 2)
 # ==========================================
 st.markdown("""
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
         
-        /* Global Variables based on user design */
+        /* Global Streamlit Overrides */
+        .stApp {
+            background-color: #0e1117;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Variables */
         :root {
-            --bg-color: #0e1117;
             --card-bg: #262730;
-            --text-primary: #fafafa;
-            --text-secondary: #9799a4;
             --tiktok-cyan: #00f2ea;
             --tiktok-red: #ff0050;
+            --text-primary: #fafafa;
         }
 
         /* Title Styling */
-        .title-container {
+        .header-container {
             text-align: center;
             margin-bottom: 2rem;
+            animation: float 3s ease-in-out infinite;
         }
         
-        .tiktok-logo {
-            font-size: 3rem;
+        .tiktok-logo-icon {
+            font-size: 3.5rem;
             margin-bottom: 0.5rem;
+            color: white;
             text-shadow: 2px 2px 0px var(--tiktok-red), -2px -2px 0px var(--tiktok-cyan);
         }
 
         h1 {
-            font-family: 'Inter', sans-serif;
-            font-weight: 700;
+            font-family: 'Inter', sans-serif !important;
+            font-weight: 800 !important;
+            font-size: 2.5rem !important;
             background: -webkit-linear-gradient(45deg, var(--tiktok-cyan), #fff, var(--tiktok-red));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
         }
 
         .subtitle {
             color: #9799a4;
             font-size: 1rem;
             font-weight: 300;
-            margin-top: 0.5rem;
-            text-align: center;
+            margin-top: 5px;
+            letter-spacing: 1px;
         }
 
-        /* Button Styling override */
+        /* Form / Card Styling */
+        [data-testid="stForm"] {
+            background-color: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            border: 1px solid #333;
+        }
+
+        /* Input Fields Styling */
+        .stTextInput input, .stNumberInput input {
+            background-color: #0e1117 !important;
+            border: 1px solid #444 !important;
+            color: white !important;
+            border-radius: 8px !important;
+        }
+        
+        .stTextInput input:focus, .stNumberInput input:focus {
+            border-color: var(--tiktok-red) !important;
+            box-shadow: 0 0 8px rgba(255, 0, 80, 0.3) !important;
+        }
+
+        /* Button Styling (Gradient) */
         div.stButton > button {
             width: 100%;
-            background: linear-gradient(90deg, #00f2ea, #ff0050);
-            border: none;
-            color: white;
-            font-weight: 700;
+            background: linear-gradient(90deg, #00f2ea, #ff0050) !important;
+            border: none !important;
+            color: white !important;
+            font-weight: 700 !important;
             text-transform: uppercase;
             letter-spacing: 1px;
-            padding: 0.75rem;
-            transition: transform 0.2s;
+            padding: 0.75rem 1rem !important;
+            border-radius: 8px !important;
+            transition: transform 0.2s, box-shadow 0.2s !important;
+            margin-top: 10px;
         }
         
         div.stButton > button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255, 0, 80, 0.4);
-            border: none;
-            color: white;
+            box-shadow: 0 5px 15px rgba(255, 0, 80, 0.4) !important;
+            color: white !important;
+        }
+
+        div.stButton > button:active {
+            transform: translateY(0);
+        }
+
+        /* Success Message Box */
+        .stSuccess {
+            background-color: rgba(0, 242, 234, 0.1) !important;
+            border: 1px solid var(--tiktok-cyan) !important;
+            color: white !important;
         }
 
         /* Footer */
         .footer {
             text-align: center;
-            margin-top: 3rem;
+            margin-top: 4rem;
             color: #555;
             font-size: 0.8rem;
+            border-top: 1px solid #333;
+            padding-top: 20px;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        /* Label Icons */
+        .label-icon {
+            margin-right: 8px;
+            color: var(--tiktok-cyan);
         }
     </style>
 """, unsafe_allow_html=True)
@@ -262,13 +333,8 @@ def categorize_comment(text: str) -> str:
     elif score < 0: return "Negative"
     return "Neutral"
 
-def get_unique_filename(base_filename):
-    # Modified for Streamlit to avoid path issues, just return base or timestamped
-    # For streamlit app deployment, we often overwrite or use session state
-    return base_filename
-
 # ==========================================
-# 2. SCRAPER FUNCTION (Modified for Streamlit)
+# 2. SCRAPER FUNCTION
 # ==========================================
 def scrape_tiktok_comments(video_url, max_comments, max_replies):
     
@@ -438,7 +504,6 @@ def analyze_and_get_excel_bytes(df_main, video_url):
     output_sheets['Scrape-Summary'] = df_summary
 
     # --- SAVE TO TEMP FILE ---
-    # We save locally so the HTML generator can read it easily
     temp_filename = "temp_analysis_result.xlsx"
     with pd.ExcelWriter(temp_filename, engine='openpyxl') as writer:
         for sheet_name, df_out in output_sheets.items():
@@ -640,29 +705,37 @@ def generate_html_report_string(excel_path):
 # 5. STREAMLIT UI LAYOUT
 # ==========================================
 
-# HEADER
-st.markdown('<div class="title-container">', unsafe_allow_html=True)
-st.markdown('<i class="fab fa-tiktok tiktok-logo"></i>', unsafe_allow_html=True) # Icon relies on FontAwesome being present or unicode
-st.markdown('<h1>freemir Brand</h1>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">TikTok Video Comment Analysis Dashboard</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+# --- HEADER SECTION (HTML) ---
+st.markdown("""
+<div class="header-container">
+    <i class="fab fa-tiktok tiktok-logo-icon"></i>
+    <h1>freemir Brand</h1>
+    <div class="subtitle">TikTok Video Comment Analysis Dashboard</div>
+</div>
+""", unsafe_allow_html=True)
 
-# FORM
+# --- FORM SECTION (STYLED AS CARD) ---
 with st.form("scrape_form"):
-    st.markdown('<p style="margin-bottom:5px; font-weight:600;">🔗 TikTok Video URL</p>', unsafe_allow_html=True)
+    # Label manual with Icon via HTML, input hidden label to avoid double label
+    st.markdown('<label style="color:#fafafa; font-weight:600; font-size:0.9rem; margin-bottom:5px; display:block;"><i class="fas fa-link label-icon"></i> TikTok Video URL</label>', unsafe_allow_html=True)
     video_url = st.text_input("URL", placeholder="Paste link video TikTok di sini (https://...)", label_visibility="collapsed")
     
+    st.write("") # Spacer
+
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown('<p style="margin-bottom:5px; font-weight:600;">💬 Max Comments</p>', unsafe_allow_html=True)
+        st.markdown('<label style="color:#fafafa; font-weight:600; font-size:0.9rem; margin-bottom:5px; display:block;"><i class="fas fa-comments label-icon"></i> Max Comments</label>', unsafe_allow_html=True)
         max_comments = st.number_input("Max Comments", min_value=1, value=100, label_visibility="collapsed")
     with c2:
-        st.markdown('<p style="margin-bottom:5px; font-weight:600;">↩️ Max Replies</p>', unsafe_allow_html=True)
+        st.markdown('<label style="color:#fafafa; font-weight:600; font-size:0.9rem; margin-bottom:5px; display:block;"><i class="fas fa-reply-all label-icon"></i> Max Replies</label>', unsafe_allow_html=True)
         max_replies = st.number_input("Max Replies", min_value=0, value=0, label_visibility="collapsed")
 
-    submitted = st.form_submit_button("🤖 SCRAPE NOW!")
+    st.write("") # Spacer
+    
+    # Custom Styled Button triggered by submit
+    submitted = st.form_submit_button("ROBOT START! 🚀")
 
-# EXECUTION LOGIC
+# --- EXECUTION LOGIC (WITH SESSION STATE) ---
 if submitted:
     if not video_url:
         st.error("⚠️ Please enter a valid TikTok URL.")
@@ -673,39 +746,55 @@ if submitted:
             
             if df_result is not None:
                 # 2. Analyze
-                excel_file = analyze_and_get_excel_bytes(df_result, video_url)
+                excel_filename = analyze_and_get_excel_bytes(df_result, video_url)
                 
+                # Read Excel as bytes for session state
+                with open(excel_filename, "rb") as f:
+                    excel_bytes = f.read()
+
                 # 3. Generate HTML
-                html_str = generate_html_report_string(excel_file)
+                html_str = generate_html_report_string(excel_filename)
                 
-                st.success(f"✅ Analysis Complete! {len(df_result)} comments processed.")
+                # 4. SAVE TO SESSION STATE
+                st.session_state['df_result'] = df_result
+                st.session_state['excel_data'] = excel_bytes
+                st.session_state['html_str'] = html_str
+                st.session_state['total_comments'] = len(df_result)
+                st.session_state['analysis_done'] = True
                 
-                # 4. Download Buttons
-                col_d1, col_d2 = st.columns(2)
+                # Cleanup temp file
+                try: os.remove(excel_filename)
+                except: pass
                 
-                with open(excel_file, "rb") as f:
-                    excel_data = f.read()
-                    
-                with col_d1:
-                    st.download_button(
-                        label="📥 Download Excel Report",
-                        data=excel_data,
-                        file_name="Freemir_Analysis.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
-                    )
-                
-                with col_d2:
-                    st.download_button(
-                        label="🌏 Download HTML Dashboard",
-                        data=html_str,
-                        file_name="Freemir_Dashboard.html",
-                        mime="text/html",
-                        use_container_width=True
-                    )
-                    
             else:
                 st.error(f"❌ Error: {error_msg}")
 
-# FOOTER
+# --- RESULT SECTION (PERSISTENT) ---
+if st.session_state['analysis_done']:
+    st.success(f"✅ Analysis Complete! {st.session_state['total_comments']} comments processed.")
+    
+    st.markdown("---")
+    
+    # Download Buttons Area
+    col_d1, col_d2 = st.columns(2)
+    
+    with col_d1:
+        st.download_button(
+            label="📥 Download Excel Report",
+            data=st.session_state['excel_data'],
+            file_name="Freemir_Analysis.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+    
+    with col_d2:
+        st.download_button(
+            label="🌏 Download HTML Dashboard",
+            data=st.session_state['html_str'],
+            file_name="Freemir_Dashboard.html",
+            mime="text/html",
+            use_container_width=True
+        )
+
+# --- FOOTER ---
 st.markdown('<div class="footer">© 2025 freemir Intelligence Team. All Rights Reserved.</div>', unsafe_allow_html=True)
