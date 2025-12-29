@@ -32,7 +32,7 @@ if 'total_comments' not in st.session_state:
     st.session_state['total_comments'] = 0
 
 # API CONFIGURATION
-API_TOKEN = "apify_api_bU9GPfWGRakecXak2ejiE9xeEeClWJ3iIRNJ"
+# Note: API_TOKEN dihapus dari sini agar diinput via UI
 ACTOR_ID = "BDec00yAmCm1QbMEI"
 MIN_CHAR_LENGTH = 3
 
@@ -243,9 +243,10 @@ def safe_translate(translator, text):
 # ==========================================
 # 2. SCRAPER FUNCTION
 # ==========================================
-def scrape_tiktok_comments(video_url, max_comments, max_replies):
+def scrape_tiktok_comments(video_url, max_comments, max_replies, api_token):
     
-    client = ApifyClient(API_TOKEN)
+    # Menerima API Token secara dinamis
+    client = ApifyClient(api_token)
     
     run_input = {
         "postURLs": [video_url],
@@ -621,6 +622,13 @@ st.markdown("""
 
 # --- FORM SECTION (STYLED AS CARD) ---
 with st.form("scrape_form"):
+    
+    # NEW INPUT: API TOKEN FIELD
+    st.markdown('<label style="color:#fafafa; font-weight:600; font-size:0.9rem; margin-bottom:5px; display:block;"><i class="fas fa-key label-icon"></i> Apify API Token</label>', unsafe_allow_html=True)
+    api_token_input = st.text_input("API Token", type="password", placeholder="Paste your Apify API Token here", label_visibility="collapsed")
+    
+    st.write("") # Spacer
+
     st.markdown('<label style="color:#fafafa; font-weight:600; font-size:0.9rem; margin-bottom:5px; display:block;"><i class="fas fa-link label-icon"></i> TikTok Video URL</label>', unsafe_allow_html=True)
     video_url = st.text_input("URL", placeholder="Paste link video TikTok di sini (https://...)", label_visibility="collapsed")
     
@@ -640,9 +648,10 @@ with st.form("scrape_form"):
     submitted = st.form_submit_button("ROBOT START! 🚀")
 
 # --- EXECUTION LOGIC (CHECKLIST & PROGRESS) ---
-# --- EXECUTION LOGIC (CHECKLIST & PROGRESS) ---
 if submitted:
-    if not video_url:
+    if not api_token_input:
+         st.error("⚠️ Please enter your Apify API Token.")
+    elif not video_url:
         st.error("⚠️ Please enter a valid TikTok URL.")
     else:
         # PENGGUNAAN STATUS CONTAINER (CHECKLIST STEP BY STEP)
@@ -650,7 +659,8 @@ if submitted:
             
             # STEP 1: SCRAPING
             st.write("📡 Step 1: Connecting to TikTok & Scraping Data...")
-            df_result, error_msg = scrape_tiktok_comments(video_url, max_comments, max_replies)
+            # PASSING TOKEN INPUT TO FUNCTION
+            df_result, error_msg = scrape_tiktok_comments(video_url, max_comments, max_replies, api_token_input)
             
             if df_result is not None:
                 st.write(f"✅ Scraping Successful! {len(df_result)} comments found.")
