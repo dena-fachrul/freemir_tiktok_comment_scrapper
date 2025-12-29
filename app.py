@@ -32,7 +32,7 @@ if 'total_comments' not in st.session_state:
     st.session_state['total_comments'] = 0
 
 # API CONFIGURATION
-# Note: API_TOKEN dihapus dari sini agar diinput via UI
+# (HAPUS TOKEN DISINI AGAR TIDAK AUTO RUN - DIGANTI INPUT USER)
 ACTOR_ID = "BDec00yAmCm1QbMEI"
 MIN_CHAR_LENGTH = 3
 
@@ -623,7 +623,7 @@ st.markdown("""
 # --- FORM SECTION (STYLED AS CARD) ---
 with st.form("scrape_form"):
     
-    # NEW INPUT: API TOKEN FIELD
+    # NEW INPUT: API TOKEN FIELD (DITAMBAHKAN SESUAI REQUEST)
     st.markdown('<label style="color:#fafafa; font-weight:600; font-size:0.9rem; margin-bottom:5px; display:block;"><i class="fas fa-key label-icon"></i> Apify API Token</label>', unsafe_allow_html=True)
     api_token_input = st.text_input("API Token", type="password", placeholder="Paste your Apify API Token here", label_visibility="collapsed")
     
@@ -650,7 +650,7 @@ with st.form("scrape_form"):
 # --- EXECUTION LOGIC (CHECKLIST & PROGRESS) ---
 if submitted:
     if not api_token_input:
-         st.error("⚠️ Please enter your Apify API Token.")
+         st.error("⚠️ STOP! Mohon masukkan Apify API Token terlebih dahulu.")
     elif not video_url:
         st.error("⚠️ Please enter a valid TikTok URL.")
     else:
@@ -659,7 +659,7 @@ if submitted:
             
             # STEP 1: SCRAPING
             st.write("📡 Step 1: Connecting to TikTok & Scraping Data...")
-            # PASSING TOKEN INPUT TO FUNCTION
+            # PASSING TOKEN INPUT DARI FORM KE FUNGSI
             df_result, error_msg = scrape_tiktok_comments(video_url, max_comments, max_replies, api_token_input)
             
             if df_result is not None:
@@ -667,7 +667,6 @@ if submitted:
                 
                 # STEP 2: CLEANING & TRANSLATING
                 st.write("🧹 Step 2: Cleaning text, Sentiment Analysis & Translating (Summary Only)...")
-                # Kita gunakan try-except besar disini agar jika translate error, tidak crash total
                 try:
                     excel_filename = analyze_and_get_excel_bytes(df_result, video_url)
                     st.write("✅ Analysis & Translation complete.")
@@ -679,11 +678,9 @@ if submitted:
                 # STEP 3: FILE GENERATION
                 st.write("📄 Step 3: Generating Excel & HTML reports...")
                 
-                # Read Excel as bytes for session state
                 with open(excel_filename, "rb") as f:
                     excel_bytes = f.read()
 
-                # Generate HTML
                 html_str = generate_html_report_string(excel_filename)
                 
                 # SAVE TO SESSION STATE
@@ -693,14 +690,12 @@ if submitted:
                 st.session_state['total_comments'] = len(df_result)
                 st.session_state['analysis_done'] = True
                 
-                # Cleanup temp file
                 try: os.remove(excel_filename)
                 except: pass
                 
                 st.write("✅ All processes completed!")
                 status.update(label="Done! Data is ready to download.", state="complete", expanded=False)
                 
-                # Rerun agar tombol download muncul di bawah form (UI refresh)
                 time.sleep(1)
                 st.rerun()
 
@@ -715,7 +710,6 @@ if st.session_state['analysis_done']:
     
     st.markdown("---")
     
-    # Download Buttons Area
     col_d1, col_d2 = st.columns(2)
     
     with col_d1:
